@@ -19,7 +19,7 @@ Note: Some packages (like `sunrise` and `spafastprototype`) may require speciali
 Generate a CSV file for a given linear $H_n$ molecule.
 
 ```python
-from run_data import run_dissociation
+from main_Hn import run_dissociation
 
 run_dissociation(n=4, max_iter=36, d_min=0.5, d_max=4.0, get_fci=True, get_var=True)
 ```
@@ -41,7 +41,7 @@ Each row of the generated file contains:
 Generate data for increasing $H_n$ chain length at a fixed interatomic distance.
 
 ```python
-from run_data import run_scaling
+from main_Hn import run_scaling
 
 run_scaling(n_min=2, n_max=30, distance=1.0)
 ```
@@ -97,3 +97,35 @@ plt.xticks(df["n"])
 # plt.savefig(f"results_vs_n.pdf")
 plt.show()
 ```
+
+```python
+import matplotlib.pyplot as plt
+import pandas as pd
+
+data = pd.read_csv(f"results_h6.csv")
+plt.plot(data["distance"], data["spa"], "o-", label=f"SPA")
+plt.plot(data["distance"], data["fci"], "o-", label=f"FCI")
+plt.xlabel("Interatomic distance (Å)")
+plt.ylabel("Energy (eH)")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+# plt.savefig("dissociation_curves_h6.pdf")
+plt.show()
+```
+
+```python
+import matplotlib.pyplot as plt
+import pandas as pd
+
+data = pd.read_csv(f"results_h6.csv")
+plt.plot(data["distance"], data["spa"]-data["fci"], "o-")
+plt.xlabel("Interatomic distance (Å)")
+plt.ylabel("Error (eH)")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+# plt.savefig("error.pdf")
+plt.show()
+```
+Replace `data["spa"]-data["fci"]` by `data["fid"]` or `data["var"]`.
