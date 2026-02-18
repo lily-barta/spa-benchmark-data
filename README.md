@@ -57,13 +57,17 @@ Output CSV files:
 
 ## Reproducing Plots
 
+The following examples reproduce the main scaling and dissociation plots from the above generated CSV files.  
+
+### Timing vs. System Size
+
 ```python
 import matplotlib.pyplot as plt
 import pandas as pd
 
 data = pd.read_csv(f"timing_vs_n.csv")
 for col in data.columns:
-    if col != "n" and col != "total_time":
+    if col != "n" and col != "total_t":
         plt.plot(data["n"], data[col], marker="o", label=col)
 
 plt.xlabel("Number of hydrogens (n)")
@@ -71,26 +75,30 @@ plt.ylabel("Time (s)")
 plt.yscale("log")   
 plt.legend()
 plt.tight_layout()
-plt.xticks(df["n"])
+plt.xticks(data["n"])
 # plt.savefig("times_vs_n.pdf")
 plt.show()
 ```
+
+### Accuracy vs. System Size
+
 ```python
 import matplotlib.pyplot as plt
 import pandas as pd
 
 data = pd.read_csv(f"results_vs_n.csv")
 data = data[data["n"] <= 14].copy()
-plt.plot(data["n"], 1-data["fidelity"], marker="o", label="1 - Fidelity")
-plt.plot(data["n"], data["variance"], marker="o", label="Variance (eH)")
+plt.plot(data["n"], 1-data["fid"], marker="o", label="1 - Fidelity")
+plt.plot(data["n"], data["var"], marker="o", label="Variance (eH)")
 plt.plot(data["n"], data["spa"]-data["fci"], marker="o", label="Error (eH)")
 plt.xlabel("Number of hydrogens (n)")
 plt.legend()
 plt.tight_layout()
-plt.xticks(df["n"])
+plt.xticks(data["n"])
 # plt.savefig(f"results_vs_n.pdf")
 plt.show()
 ```
+### Dissociation Curve (Example: H6)
 
 ```python
 import matplotlib.pyplot as plt
@@ -107,6 +115,7 @@ plt.tight_layout()
 # plt.savefig("dissociation_curves_h6.pdf")
 plt.show()
 ```
+### Dissociation Error (Example: H6)
 
 ```python
 import matplotlib.pyplot as plt
@@ -122,4 +131,4 @@ plt.tight_layout()
 # plt.savefig("error.pdf")
 plt.show()
 ```
-Replace `data["spa"]-data["fci"]` by `data["fid"]` or `data["var"]`.
+To visualize fidelity or variance along the dissociation curve, replace `data["spa"]-data["fci"]` by `data["fid"]` or `data["var"]`.
