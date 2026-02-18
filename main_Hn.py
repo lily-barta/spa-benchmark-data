@@ -26,7 +26,7 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     geometry, distance = generate_geometry(n, iter, max_iter, d_min=d_min, d_max=d_max)
     print(f"Interatomic distance = {distance:.5f}")
     mol = sun.Molecule(geometry=geometry,basis_set='sto-3g',nature='h',transformation='reordered-jordan-wigner').use_native_orbitals()
-    
+
     edges, guess = mol.get_spa_edges_and_guess()
     U = mol.make_spa_ansatz(edges=edges, hcb=True)
 
@@ -35,14 +35,14 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     opt = fspa.fast_spa_orb_opt(mol=mol, edges=edges, initial_guess=guess.T)
     mol = opt.molecule
     oo_end = time.time()
-    print(f"Orbital optimisation took {oo_end-oo_start}s") 
+    print(f"Orbital optimisation took {oo_end-oo_start:.6f}s") 
 
     ## COMPUTE SPA ENERGY 
     spa_start=time.time()
     res = fspa.fast_spa_vqe(mol, U)
     spa_end = time.time()
     print(f"VQE SPA  : {res.energy:+2.10f}")
-    print(f"SPA energy took {spa_end-spa_start}s") 
+    print(f"SPA energy took {spa_end-spa_start:.6f}s") 
 
     results = {
         "n": n,
@@ -57,7 +57,7 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
         spa_start = time.time()
         wfn_spa_hcb = sun.simulate(U, variables=res.variables)
         results["spa_wfn_t"] = time.time() - spa_start
-        print(f"SPA wfn took {time.time() - spa_start}s") 
+        print(f"SPA wfn took {time.time() - spa_start:.6f}s") 
     
         ## COMPARE TO FCI ENERGY
         fci_start = time.time()
@@ -74,7 +74,7 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
         results["fci_t"] = time.time() - fci_start       
         print(f"FCI      : {fci0:.10f}")
         print(f"Error    : {res.energy-fci0:.10f}")
-        print(f"FCI took {time.time() - fci_start}s") 
+        print(f"FCI took {time.time() - fci_start:.6f}s") 
     
         ## COMPUTE FIDELITY
         fid_start = time.time()
@@ -88,7 +88,7 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
         results["fid"] = fidelity
         results["fid_t"] = time.time() - fid_start
         print(f"fidelity : {fidelity:.6f}")
-        print(f"Fidelity took {time.time()-fid_start}s")
+        print(f"Fidelity took {time.time()-fid_start:.6f}s")
 
     ## COMPUTE VARIANCE
     if get_var:
@@ -102,10 +102,10 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
         results["var"] = var
         results["var_t"] = time.time() - var_start
         print(f"Variance : {var:.6f}")
-        print(f"Variance took {time.time()-var_start}s")
+        print(f"Variance took {time.time()-var_start:.6f}s")
 
     results["total_t"] = time.time() - start
-    print(f"Data point took {time.time()-start}s")
+    print(f"Data point took {time.time()-start:.6f}s")
     return results
 
 def run_dissociation(n, max_iter, d_min=0.5, d_max=4.0, nroots=1, filename=None, get_fci=False, get_var=False):
