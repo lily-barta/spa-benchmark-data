@@ -61,8 +61,11 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     
         ## COMPARE TO FCI ENERGY
         fci_start = time.time()
-        nroots_map = {4: 6, 6: 20, 8: 70, 10: 100}
-        if distance >= 2.7 and n in nroots_map:
+        nroots_map = {4: 6, 6: 20, 8: 70}
+        if distance >= 2.5 and n > 8:
+            print(f"\n!!! Warning !!! \nFCI for H{n} at distance {distance:.2f} Å is degenerate. \n"
+                "Fidelity requires many FCI roots and is not computed due to high cost.\n")
+        elif distance >= 2.7 and n in nroots_map:
             nroots = nroots_map[n]
         ci0 = wfn_spa_hcb if n > 6 else None
         fci, wfn_fci = mol.compute_energy("fci", get_wfn=True, nroots=nroots, ci0=ci0, use_hcb=True)
