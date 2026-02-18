@@ -54,6 +54,11 @@ Output CSV files:
 
 - In the provided scaling script, FCI and variance calculations are automatically disabled for larger systems to avoid excessive runtimes.
 
+- **Near-degeneracies at large interatomic distances:**  
+As the $H_n$ chains dissociate, the FCI ground state becomes degenerate.  
+To obtain a meaningful fidelity in this regime, multiple FCI roots must be included.  
+The required number of roots grows rapidly with system size, and for $H_{10}$ it becomes prohibitively expensive.  
+For this reason, fidelity calculations at large separations ($d > 2.5$ Å) are not recommended for larger systems.
 
 ## Reproducing Plots
 
