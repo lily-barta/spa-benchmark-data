@@ -108,6 +108,24 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     print(f"Data point took {time.time()-start:.6f}s")
     return results
 
+def format_dict(d):
+    precision_map = {
+        "distance": ".3f",
+        "spa": ".8f",
+        "fci": ".8f",
+        "fid": ".4f",
+        "var": ".4f",
+    }
+    formatted = {}
+    for k, v in d.items():
+        if isinstance(v, float) and k in precision_map:
+            formatted[k] = format(v, precision_map[k])
+        elif isinstance(v, float) and k.endswith("_t"):  
+            formatted[k] = format(v, ".6f")
+        else:
+            formatted[k] = v
+    return formatted
+
 def run_dissociation(n, max_iter, d_min=0.5, d_max=4.0, nroots=1, filename=None, get_fci=False, get_var=False):
     """
     Arguments
@@ -135,7 +153,7 @@ def run_dissociation(n, max_iter, d_min=0.5, d_max=4.0, nroots=1, filename=None,
         writer.writeheader()
         for iter in range(max_iter):
             data_dict = generate_data_point(n, iter, max_iter, d_min=d_min, d_max=d_max, nroots=nroots, get_fci=get_fci, get_var=get_var)
-            writer.writerow(data_dict)
+            writer.writerow(format_dict(data_dict))
 
 def run_single_point(n, distance, nroots=1, get_fci=False, get_var=False):
     """
@@ -183,5 +201,5 @@ def run_scaling(n_min=2, n_max=10, distance=1.0, nroots=1, filename_t="timing_vs
             get_fci = True if n <= 14 else False
             get_var = True if n <= 10 else False
             data_dict = run_single_point(n=n, distance=distance, nroots=nroots, get_fci=get_fci, get_var=get_var)
-            writer.writerow(data_dict)
-            writer_t.writerow(data_dict)
+            writer.writerow(format_dict(data_dict))
+            writer_t.writerow(format_dict(data_dict))
