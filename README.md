@@ -5,7 +5,16 @@ This repository contains the raw data and code for benchmarking the Separable Pa
 
 ## Requirements
 
+This code was tested with **Python 3.11.11**.  
+The following packages are required:
 
+```bash
+pip install tequila-basic==1.9.10.dev0
+pip install project-sunrise==0.1.0
+pip install spafastprototype==0.1.0
+pip install matplotlib>=3.0
+```
+> Note: Some packages may require additional installation steps or specific compilers. Please refer to their respective documentation for details.
 
 ## Generating Data 
 
