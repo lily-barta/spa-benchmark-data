@@ -1,5 +1,6 @@
 import tequila as tq
 import sunrise as sun
+import numpy
 import csv
 import time
 import spafastprototype as fspa
@@ -18,6 +19,14 @@ def generate_geometry(n, iter, max_iter, d_min=0.5, d_max=4.0):
         geom += f"H 0.0 0.0 {i * R}\n"
     return geom, R
 
+def get_edges_and_guess(n):
+    edges = [(i, i + 1) for i in range(0, n, 2)]
+    guess = numpy.eye(n)
+    for edge in edges:
+        guess[edge[0]][edge[1]] = 1
+        guess[edge[1]][edge[0]] = -1
+    return edges, guess.T
+
 def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_fci=False, get_var=False):
     start=time.time()
     print(f"\nIteration : {iter + 1} / {max_iter}")
@@ -25,14 +34,14 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     ## PREPARE MOLECULE AND CIRCUIT
     geometry, distance = generate_geometry(n, iter, max_iter, d_min=d_min, d_max=d_max)
     print(f"Interatomic distance = {distance:.5f}")
-    mol = sun.Molecule(geometry=geometry,basis_set='sto-3g',nature='h',transformation='reordered-jordan-wigner').use_native_orbitals()
+    mol = sun.Molecule(geometry=geometry,basis_set='sto-3g').use_native_orbitals()
 
-    edges, guess = mol.get_spa_edges_and_guess()
+    edges, guess = get_edges_and_guess(n)
     U = mol.make_spa_ansatz(edges=edges, hcb=True)
 
     ## OPTIMISE ORBITALS
     oo_start=time.time()
-    opt = fspa.fast_spa_orb_opt(mol=mol, edges=edges, initial_guess=guess.T)
+    opt = fspa.fast_spa_orb_opt(mol=mol, edges=edges, initial_guess=guess)
     mol = opt.molecule
     oo_end = time.time()
     print(f"Orbital optimisation took {oo_end-oo_start:.6f}s") 
