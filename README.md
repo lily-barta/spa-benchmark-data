@@ -10,7 +10,6 @@ The following packages are required:
 ```bash
 pip install tequila-basic==1.9.10.dev0
 pip install git+https://github.com/tequilahub/sunrise.git@devel
-pip install spafastprototype==0.1.0
 ```
 
 ## Generating Data 
