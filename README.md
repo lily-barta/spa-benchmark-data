@@ -9,10 +9,9 @@ The following packages are required:
 
 ```bash
 pip install tequila-basic==1.9.10.dev0
-pip install project-sunrise==0.1.0
+pip install git+https://github.com/tequilahub/sunrise.git@devel
 pip install spafastprototype==0.1.0
 ```
-> Note: Some packages may require additional installation steps or specific compilers. Please refer to their respective documentation for details.
 
 ## Generating Data 
 
