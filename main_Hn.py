@@ -34,21 +34,24 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     ## PREPARE MOLECULE AND CIRCUIT
     geometry, distance = generate_geometry(n, iter, max_iter, d_min=d_min, d_max=d_max)
     print(f"Interatomic distance = {distance:.5f}")
-    mol = sun.Molecule(geometry=geometry,basis_set='sto-3g').use_native_orbitals()
+    mol = sun.Molecule(geometry=geometry,basis_set='sto-3g',nature='h',transformation='reordered-jordan-wigner').use_native_orbitals()
 
     edges, guess = get_edges_and_guess(n)
     U = mol.make_spa_ansatz(edges=edges, hcb=True)
 
     ## OPTIMISE ORBITALS
     oo_start=time.time()
-    opt = fspa.fast_spa_orb_opt(mol=mol, edges=edges, initial_guess=guess)
+    opt = sun.SPAFP.run_spa(mol=mol, edges=edges, initial_guess=guess)
     mol = opt.molecule
     oo_end = time.time()
     print(f"Orbital optimisation took {oo_end-oo_start:.6f}s") 
 
     ## COMPUTE SPA ENERGY 
     spa_start=time.time()
-    res = fspa.fast_spa_vqe(mol, U)
+    H = mol.make_hardcore_boson_hamiltonian()
+    grouping = sun.SPAFP.make_decomposed_clusters(U)
+    vqe_solver = sun.SPAFP.SPASolver(decompose=True,grouping=grouping)
+    res = vqe_solver(H=H, circuit=U, molecule=mol)
     spa_end = time.time()
     print(f"VQE SPA  : {res.energy:+2.10f}")
     print(f"SPA energy took {spa_end-spa_start:.6f}s") 
@@ -64,7 +67,8 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
     if get_fci:
         ## COMPUTE SPA WFN
         spa_start = time.time()
-        wfn_spa_hcb = sun.simulate(U, variables=res.variables)
+        wfn_spa_hcb = tq.simulate(U, variables=res.variables)
+        print(wfn_spa_hcb)
         results["spa_wfn_t"] = time.time() - spa_start
         print(f"SPA wfn took {time.time() - spa_start:.6f}s") 
     
