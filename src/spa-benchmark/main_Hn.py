@@ -3,7 +3,6 @@ import sunrise as sun
 import numpy
 import csv
 import time
-import spafastprototype as fspa
 import sys
 # print(sys.getrecursionlimit())
 sys.setrecursionlimit(30000)

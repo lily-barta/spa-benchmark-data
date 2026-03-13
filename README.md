@@ -2,13 +2,16 @@
 
 This repository contains the raw data and code for benchmarking the Separable Pair Ansatz (SPA) method on hydrogen chains ($H_n$).
 
-## Requirements
-
-This code was tested with **Python 3.11.11** on MacBook M4.  
-The following packages are required:
+## Installation
 
 ```bash
-pip install tequila-basic==1.9.10.dev0
+git clone https://github.com/lily-barta/spa-benchmark.git
+cd spa-benchmark
+
+conda create -n myenv python=3.11
+conda activate myenv
+
+pip install -e .
 pip install git+https://github.com/tequilahub/sunrise.git@devel
 ```
 
@@ -18,7 +21,7 @@ pip install git+https://github.com/tequilahub/sunrise.git@devel
 Generate a CSV file for a given linear $H_n$ molecule.
 
 ```python
-from main_Hn import run_dissociation
+from spa_benchmark import run_dissociation
 
 run_dissociation(n=4, max_iter=36, d_min=0.5, d_max=4.0, get_fci=True, get_var=True)
 ```
@@ -40,13 +43,16 @@ Each row of the generated file contains:
 Generate data for increasing $H_n$ chain length at a fixed interatomic distance.
 
 ```python
-from main_Hn import run_scaling
+from spa_benchmark import run_scaling
 
 run_scaling(n_min=2, n_max=30, distance=1.0)
 ```
 Output CSV files: 
 - `results_vs_n.csv` – SPA/FCI/fidelity/variance vs. n
 - `timing_vs_n.csv` – Total runtime and individual timing contributions vs. n
+
+Output CSV files are written to the current working directory.
+Pre-generated example data is available in `data_hn/`.
 
 ## Notes on Computational Cost
 
