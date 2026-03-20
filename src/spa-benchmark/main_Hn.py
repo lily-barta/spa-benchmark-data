@@ -1,5 +1,6 @@
 import tequila as tq
 import sunrise as sun
+from sunrise.measurement import get_hcb_part
 import numpy
 import csv
 import time
@@ -26,52 +27,54 @@ def get_edges_and_guess(n):
         guess[edge[1]][edge[0]] = -1
     return edges, guess.T
 
-def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_fci=False, get_var=False):
+def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_fci=False, get_var=False, verbose=False, get_coupling=False):
     start=time.time()
     print(f"\nIteration : {iter + 1} / {max_iter}")
 
-    ## PREPARE MOLECULE AND CIRCUIT
+    # Build tequila/sunrise molecule
     geometry, distance = generate_geometry(n, iter, max_iter, d_min=d_min, d_max=d_max)
     print(f"Interatomic distance = {distance:.5f}")
-    mol = sun.Molecule(geometry=geometry,basis_set='sto-3g',nature='h',transformation='reordered-jordan-wigner').use_native_orbitals()
+    mol = sun.Molecule(geometry=geometry,basis_set='sto-3g',transformation='reordered-jordan-wigner').use_native_orbitals()
 
+    results = {
+        "n": n,
+        "distance": f"{distance:.3f}"
+        }
+    
+    # Build SPA circuit
     edges, guess = get_edges_and_guess(n)
     U = mol.make_spa_ansatz(edges=edges, hcb=True)
 
-    ## OPTIMISE ORBITALS
+    # Optimise orbitals
     oo_start=time.time()
     opt = sun.SPAFP.run_spa(mol=mol, edges=edges, initial_guess=guess)
     mol = opt.molecule
-    oo_end = time.time()
-    print(f"Orbital optimisation took {oo_end-oo_start:.6f}s") 
+    results["oo_t"] = f"{time.time() - oo_start:.6f}"
+    if verbose:
+        print(f"Orb opt took {time.time()-oo_start:.6f}s") 
 
-    ## COMPUTE SPA ENERGY 
+    # Fast HCB-SPA VQE
     spa_start=time.time()
     H = mol.make_hardcore_boson_hamiltonian()
     grouping = sun.SPAFP.make_decomposed_clusters(U)
     vqe_solver = sun.SPAFP.SPASolver(decompose=True,grouping=grouping)
     res = vqe_solver(H=H, circuit=U, molecule=mol)
-    spa_end = time.time()
-    print(f"VQE SPA  : {res.energy:+2.10f}")
-    print(f"SPA energy took {spa_end-spa_start:.6f}s") 
-
-    results = {
-        "n": n,
-        "distance": distance,
-        "spa": res.energy,
-        "oo_t": oo_end - oo_start,
-        "spa_t": spa_end - spa_start
-    }
+    results["spa"] = f"{res.energy:.10f}"
+    results["spa_t"] = f"{time.time() - oo_start:.6f}"
+    if verbose:
+        print(f"VQE SPA  : {res.energy:+2.10f}")
+        print(f"SPA energy took {time.time()-spa_start:.6f}s") 
 
     if get_fci:
-        ## COMPUTE SPA WFN
+        # Get HCB-SPA wavefunction
         spa_start = time.time()
         wfn_spa_hcb = tq.simulate(U, variables=res.variables)
         print(wfn_spa_hcb)
-        results["spa_wfn_t"] = time.time() - spa_start
-        print(f"SPA wfn took {time.time() - spa_start:.6f}s") 
+        results["spa_wfn_t"] = f"{time.time() - spa_start:.6f}"
+        if verbose:
+            print(f"SPA wfn took {time.time() - spa_start:.6f}s") 
     
-        ## COMPARE TO FCI ENERGY
+        # Compute FCI energy and wavefunction
         fci_start = time.time()
         nroots_map = {4: 6, 6: 20, 8: 70}
         if distance >= 2.5 and n > 8:
@@ -82,13 +85,14 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
         ci0 = wfn_spa_hcb if n > 6 else None
         fci, wfn_fci = mol.compute_energy("fci", get_wfn=True, nroots=nroots, ci0=ci0, use_hcb=True)
         fci0 = fci if nroots == 1 else fci[0]     
-        results["fci"] = fci0
-        results["fci_t"] = time.time() - fci_start       
-        print(f"FCI      : {fci0:.10f}")
-        print(f"Error    : {res.energy-fci0:.10f}")
-        print(f"FCI took {time.time() - fci_start:.6f}s") 
+        results["fci"] = f"{fci0:.10f}"
+        results["fci_t"] = f"{time.time() - fci_start:.6f}"
+        if verbose:
+            print(f"FCI      : {fci0:.10f}")
+            print(f"Error    : {res.energy-fci0:.10f}")
+            print(f"FCI energy+wfn took {time.time()-fci_start:.6f}s")
     
-        ## COMPUTE FIDELITY
+        # Compute fidelity (SPA/FCI overlap)
         fid_start = time.time()
         if nroots == 1:
             fidelity = abs(wfn_spa_hcb.inner(wfn_fci))**2
@@ -97,92 +101,91 @@ def generate_data_point(n, iter, max_iter, d_min=0.5, d_max=4.0, nroots=1, get_f
             for i in range(nroots):
                 if abs(fci[i]-fci[0]) < 0.0016: 
                     fidelity += abs(wfn_spa_hcb.inner(wfn_fci[i]))**2
-        results["fid"] = fidelity
-        results["fid_t"] = time.time() - fid_start
-        print(f"fidelity : {fidelity:.6f}")
-        print(f"Fidelity took {time.time()-fid_start:.6f}s")
+        results["fid"] = f"{fidelity:.6f}"
+        results["fid_t"] = f"{time.time() - fid_start:.6f}"
+        if verbose:
+            print(f"fidelity : {fidelity:.6f}")
+            print(f"Fidelity took {time.time()-fid_start:.6f}s")
 
-    ## COMPUTE VARIANCE
+    # Compute variance
     if get_var:
         var_start=time.time()
         H = mol.make_hamiltonian()
         H2 = tq.ExpectationValue(H=H**2, U=U+mol.hcb_to_me())
-        results["h2_t"] = time.time() - var_start
-        print(f"Building H2 took {time.time()-var_start}s")
+        results["h2_t"] = f"{time.time() - var_start:.6f}"
+        if verbose:
+            print(f"Building H2 took {time.time()-var_start:.6f}s")
         E = tq.ExpectationValue(H=H, U=U+mol.hcb_to_me())
         var = sun.simulate(H2-E**2, variables=res.variables)
-        results["var"] = var
-        results["var_t"] = time.time() - var_start
-        print(f"Variance : {var:.6f}")
-        print(f"Variance took {time.time()-var_start:.6f}s")
+        results["var"] = f"{var:.6f}"
+        results["var_t"] = f"{time.time() - var_start:.6f}"
+        if verbose:
+            print(f"Variance : {var:.6f}")
+            print(f"Variance took {time.time()-var_start:.6f}s")
 
-    results["total_t"] = time.time() - start
-    print(f"Data point took {time.time()-start:.6f}s")
+    # Compute the coupling between SPA/non-seniority zero
+    if get_coupling:
+        coupling_start = time.time()
+        hcb_mol, res_mol = get_hcb_part(mol)
+        H_res = res_mol.make_hamiltonian()
+        H2_res = tq.ExpectationValue(H=H_res**2, U=U+mol.hcb_to_me())
+        results["h2_res_t"] = f"{time.time() - coupling_start:.6f}"
+        if verbose:
+            print(f"Building H_res + H2_res took {time.time()-coupling_start:.6f}s")
+        coupling_sq = sun.simulate(H2_res, variables=res.variables)
+        coupling = numpy.sqrt(coupling_sq)
+        results["coupling"] = f"{coupling:.6f}"
+        results["coupling_t"] = f"{time.time() - coupling_start:.6f}"
+        if verbose:
+            print(f"Coupling : {coupling:.6f}")
+            print(f"Coupling took {time.time()-coupling_start:.6f}s")
+
+    results["total_t"] = f"{time.time() - start:.6f}"
+    if verbose:
+            print(f"Data point took {time.time()-start:.6f}s")
     return results
 
-def format_dict(d):
-    precision_map = {
-        "distance": ".3f",
-        "spa": ".8f",
-        "fci": ".8f",
-        "fid": ".4f",
-        "var": ".4f",
-    }
-    formatted = {}
-    for k, v in d.items():
-        if isinstance(v, float) and k in precision_map:
-            formatted[k] = format(v, precision_map[k])
-        elif isinstance(v, float) and k.endswith("_t"):  
-            formatted[k] = format(v, ".6f")
-        else:
-            formatted[k] = v
-    return formatted
 
-def run_dissociation(n, max_iter, d_min=0.5, d_max=4.0, nroots=1, filename=None, get_fci=False, get_var=False):
+def run_dissociation(n, max_iter, d_min=0.5, d_max=4.0, nroots=1, filename=None, get_fci=False, get_var=False, verbose=False, get_coupling=False):
     """
-    Arguments
-    ----------
-    n: Number of H atoms in H_n chain.
-    max_iter: Total number of dissociation points.
-    d_min, d_max: Minimum and maximum interatomic distance (in angstroms).
-    nroots: Number of FCI eigenstates used as reference.
+    :param n: Number of H atoms in H_n chain.
+    :param max_iter: Total number of dissociation points.
+    :param d_min: Minimum interatomic distance (in angstroms).
+    :param d_max: Maximum interatomic distance (in angstroms).
+    :param nroots: Number of FCI eigenstates used as reference.
             Use nroots > 1 in the presence of near-degeneracies.
-    filename: Name of the output CSV file.
+    :param filename: Name of the output CSV file.
              If None, default is f"results_h{n}.csv".
-    get_fci: If True, compute and store FCI energies and fidelities.
-    get_var: If True, compute and store the energy variance.
+    :param get_fci: If True, compute and store FCI energies and fidelities.
+    :param get_var: If True, compute and store the energy variance.
+    :param get_coupling: If True, compute and store coupling between SPA and non-seniority zero
+    :param verbose: If True, prints results
     
-    Returns
-    -------
-    Generates a CSV file with one row per dissociation point.
+    :return: Generates a CSV file with one row per dissociation point.
     """
     if filename is None:
         filename = f"results_h{n}.csv"
     
     with open(filename, "w", newline="") as file:
-        columns = ["distance", "spa", "fci", "fid", "var"]
+        columns = ["distance", "spa", "fci", "fid", "var", "coupling"]
         writer = csv.DictWriter(file, fieldnames=columns, extrasaction='ignore')
         writer.writeheader()
         for iter in range(max_iter):
-            data_dict = generate_data_point(n, iter, max_iter, d_min=d_min, d_max=d_max, nroots=nroots, get_fci=get_fci, get_var=get_var)
-            writer.writerow(format_dict(data_dict))
+            data_dict = generate_data_point(n, iter, max_iter, d_min=d_min, d_max=d_max, nroots=nroots, get_fci=get_fci, get_var=get_var, verbose=verbose, get_coupling=get_coupling)
+            writer.writerow(data_dict)
 
-def run_single_point(n, distance, nroots=1, get_fci=False, get_var=False):
+def run_single_point(n, distance, nroots=1, get_fci=False, get_var=False, verbose=False, get_coupling=False):
     """
-    Arguments
-    ----------
-    n: Number of H atoms in H_n chain.
-    distance: Interatomic distance (in angstroms).
-    nroots: Number of FCI eigenstates used as reference.
+    :param n: Number of H atoms in H_n chain.
+    :param distance: Interatomic distance (in angstroms).
+    :param nroots: Number of FCI eigenstates used as reference.
             Use nroots > 1 in the presence of near-degeneracies. 
 
-    Returns
-    -------
-    dictionary containing all the computed data
+    :return: dictionary containing all the computed data
     """
-    return generate_data_point(n=n, iter=0, max_iter=1, d_min=distance, nroots=nroots, get_fci=get_fci, get_var=get_var)
+    return generate_data_point(n=n, iter=0, max_iter=1, d_min=distance, nroots=nroots, get_fci=get_fci, get_var=get_var, verbose=verbose, get_coupling=get_coupling)
 
-def run_scaling(n_min=2, n_max=10, distance=1.0, nroots=1, filename_t="timing_vs_n.csv", filename="results_vs_n.csv"):
+def run_scaling(n_min=2, n_max=10, distance=1.0, nroots=1, filename_t="timing_vs_n.csv", filename="results_vs_n.csv", verbose=False):
     """
     Arguments
     ----------
@@ -197,8 +200,8 @@ def run_scaling(n_min=2, n_max=10, distance=1.0, nroots=1, filename_t="timing_vs
     -------
     Generates two CSV files, one row per H_n chain: one for results and one for timings.
     """
-    columns = ["n", "spa", "fci", "fid", "var"]
-    columns_t = ["n", "total_t", "oo_t", "spa_t", "spa_wfn_t", "fci_t", "fid_t", "h2_t", "var_t"]
+    columns = ["n", "spa", "fci", "fid", "var", "coupling"]
+    columns_t = ["n", "total_t", "oo_t", "spa_t", "spa_wfn_t", "fci_t", "fid_t", "h2_t", "var_t", "h2_res_t", "coupling_t"]
 
     with open(filename, "w", newline="") as file, \
          open(filename_t, "w", newline="") as file_t:
@@ -212,6 +215,7 @@ def run_scaling(n_min=2, n_max=10, distance=1.0, nroots=1, filename_t="timing_vs
             print(f"\n===== Running H{n} =====")
             get_fci = True if n <= 14 else False
             get_var = True if n <= 10 else False
-            data_dict = run_single_point(n=n, distance=distance, nroots=nroots, get_fci=get_fci, get_var=get_var)
-            writer.writerow(format_dict(data_dict))
-            writer_t.writerow(format_dict(data_dict))
+            get_coupling = True if n <= 10 else False
+            data_dict = run_single_point(n=n, distance=distance, nroots=nroots, get_fci=get_fci, get_var=get_var, verbose=verbose, get_coupling=get_coupling)
+            writer.writerow(data_dict)
+            writer_t.writerow(data_dict)
