@@ -6,7 +6,6 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "tequila-basic==1.9.10.dev0",
         "pandas",
         "matplotlib", 
         "qulacs",
