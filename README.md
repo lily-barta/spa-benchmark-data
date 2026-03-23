@@ -13,6 +13,7 @@ conda activate myenv
 
 pip install -e .
 pip install git+https://github.com/tequilahub/sunrise.git@devel
+pip install git+https://github.com/tequilahub/tequila.git@devel
 ```
 
 ## Generating Data 
