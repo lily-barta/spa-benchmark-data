@@ -24,7 +24,7 @@ Generate a CSV file for a given linear $H_n$ molecule.
 ```python
 from spa_benchmark import run_dissociation
 
-run_dissociation(n=4, max_iter=36, d_min=0.5, d_max=4.0, get_fci=True, get_var=True)
+run_dissociation(n=4, max_iter=31, d_min=0.5, d_max=3.5, get_fci=True, get_var=True)
 ```
 
 - `n` – Number of H atoms
